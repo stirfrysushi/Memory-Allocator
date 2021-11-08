@@ -55,11 +55,38 @@ static inline __attribute__((unused)) int block_index(size_t x) {
     }
 }
 
+/* create a set of free lists */ 
+
+static typedef struct free_list {
+    
+    block **tails; 
+
+} free_list; 
+
+/* create a free list */ 
+
+static typedef struct block {
+    
+    char* block_header; 
+    struct block *next; 
+    struct block *prev;
+
+} block; 
+
+
+
 /*
  * You must implement malloc().  Your implementation of malloc() must be
  * the multi-pool allocator described in the project handout.
  */
 void *malloc(size_t size) {
+
+    if(size == 0) {
+    	return NULL; 
+    }
+
+
+    
     return bulk_alloc(size);
 }
 
