@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h> 
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -98,7 +99,7 @@ static void *free_list(size_t size) {
 	ptr[index] -> block_header = current_size;
 	//go to the next block and make next pointer point to the next block:
 	sbrk_ptr += size;
-	ptr[index] -> next = *(struct*)sbrk_ptr;
+	ptr[index] -> next = (struct*)sbrk_ptr;
 	i += 1; 
 	}
     return head; 
