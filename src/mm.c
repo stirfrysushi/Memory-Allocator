@@ -89,7 +89,6 @@ static void *free_list(size_t size) {
     head = ptr[index]; 
     
     while(i <= number_of_blocks) {
-
     	//for last block, next -> NULL:
 	if(i == number_of_blocks) {
 		head -> block_header = block_size; 
@@ -106,11 +105,9 @@ static void *free_list(size_t size) {
    return ptr[index]; 
 } 
 
-   
-
 void *malloc(size_t size) {
 
-    struct block *returned_ptr; 
+    void *returned_ptr; 
     int index = 0;
     int bit = 0; 
     size_t header = 0; 
@@ -133,7 +130,7 @@ void *malloc(size_t size) {
 			header = (head -> block_header) | 1; 
 			//set flag
 		        head -> block_header = header; 	
-			returned_ptr += 1; 
+			returned_ptr += 8; 
 			return returned_ptr; 
 		
 		//else if block is not free: 
@@ -142,9 +139,9 @@ void *malloc(size_t size) {
 				bit = head -> block_header; 
 				if((bit & 1) == 0) {
 					returned_ptr = head;  
-					header = (head -> block_header) | 1; 
+					header = (head -> block_header) | 1;
 					head -> block_header = header; 
-					returned_ptr += 1; 
+					returned_ptr += 8; 
 					return returned_ptr; 
 				} else {
 					head = head -> next; 
@@ -160,7 +157,7 @@ void *malloc(size_t size) {
 				returned_ptr = head; 
 				header = (head -> block_header) | 1;
 				head -> block_header = header; 
-				returned_ptr += 1; 
+				returned_ptr += 8; 
 				return returned_ptr; 
 			} else {
 				head = head -> next; 
