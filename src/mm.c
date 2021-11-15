@@ -73,34 +73,32 @@ static void *free_list(size_t size) {
     int index = 0; 
     size_t block_size = 0;
     int number_of_blocks = 0;
-    void *sbrk_ptr;  
+    void *sbrk_ptr; 
+    void *head; 
     int i = 0;
-    struct block *head;  
     
     index = block_index(size);
     block_size = 1 << index;
     number_of_blocks = CHUNK_SIZE/block_size; 
     sbrk_ptr = sbrk(CHUNK_SIZE);  
-    
+    head = sbrk_ptr; 
     //make pointer point to sbrk  
     ptr[index] = *(block*)sbrk_ptr; 
-    head = ptr[index]; 
     
     while(i <= number_of_blocks) {
     	//for last block, next -> NULL:
 	if(i == number_of_blocks) {
-		head -> block_header = block_size; 
-		head -> next = NULL; 
+		ptr[index]-> block_header = block_size; 
+		ptr[index] -> next = NULL; 
 	}
 	else {
-		head -> block_header = block_size; 
+		ptr[index] -> block_header = block_size; 
 		sbrk_ptr += block_size; 
-		head -> next = *(struct block*)sbrk_ptr;
+		ptr[index] -> next = *(block*)sbrk_ptr;
 		i += 1;
 	}
-    
    }
-   return ptr[index]; 
+   return head; 
 } 
 
 void *malloc(size_t size) {
@@ -110,7 +108,6 @@ void *malloc(size_t size) {
     int bit = 0; 
     size_t header = 0; 
     struct block *head; 
-
 
     if(size == 0 || size < 0) {
     	return NULL; 
