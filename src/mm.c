@@ -74,14 +74,14 @@ static void *free_list(size_t size) {
     size_t block_size = 0;
     int number_of_blocks = 0;
     void *sbrk_ptr; 
-    void *head; 
+    struct block *head;  
     int i = 0;
     
     index = block_index(size);
     block_size = 1 << index;
     number_of_blocks = CHUNK_SIZE/block_size; 
     sbrk_ptr = sbrk(CHUNK_SIZE);  
-    head = sbrk_ptr; 
+    head = *(block*)sbrk_ptr; 
     //make pointer point to sbrk  
     ptr[index] = *(block*)sbrk_ptr; 
     
