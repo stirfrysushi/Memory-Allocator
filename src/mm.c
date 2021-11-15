@@ -59,10 +59,8 @@ static inline __attribute__((unused)) int block_index(size_t x) {
 
 /* create a free list */ 
 typedef struct block {
-    
     size_t block_header; 
     struct block *next;  
-
 } block; 
 
 /*array of pointers */ 
@@ -70,7 +68,7 @@ struct block **ptr;
 
 //creating a free list and return pointer to first block: 
 static void *free_list(size_t size) {
-
+   
     //create free list table for specific index 
     int index = 0; 
     size_t block_size = 0;
@@ -97,7 +95,7 @@ static void *free_list(size_t size) {
 	else {
 		head -> block_header = block_size; 
 		sbrk_ptr += block_size; 
-		head -> next = *(block*)sbrk_ptr;
+		head -> next = *(struct block*)sbrk_ptr;
 		i += 1;
 	}
     
@@ -121,7 +119,7 @@ void *malloc(size_t size) {
     if(size <= 4088) {
     	index = block_index(size);
 	head = ptr[index]; 
-	//checking if linked list is made:
+	//checking if list is made:
 	if(head == NULL) {
 		head = free_list(size);
 		bit = head -> block_header; 
