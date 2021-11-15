@@ -68,51 +68,54 @@ typedef struct block {
 /*array of pointers */ 
 struct block **ptr; 
 
-//creating a free list 
-//how to keep track of the first *block? 
+//creating a free list and return pointer to first block: 
 static void *free_list(size_t size) {
-    int index = 0;
-    size_t current_size = 0; 
+
+    //create free list table for specific index 
+    int index = 0; 
     size_t block_size = 0;
     int number_of_blocks = 0;
     void *sbrk_ptr;  
     int i = 0;
     struct block *head;  
     
-    index = block_index(size + 8);
+    index = block_index(size);
     block_size = 1 << index;
     number_of_blocks = CHUNK_SIZE/block_size; 
-    sbrk_ptr = sbrk(CHUNK_SIZE); 
+    sbrk_ptr = sbrk(CHUNK_SIZE);  
     
-    while(i < number_of_blocks) {
+    //make pointer point to sbrk  
+    ptr[index] = *(block*)sbrk_ptr; 
+    head = ptr[index]; 
+    
+    while(i <= number_of_blocks) {
 
     	//for last block, next -> NULL:
 	if(i == number_of_blocks) {
-		current_size = *(size_t*)sbrk_ptr; 
-		current_size = size; 
-		ptr[index] -> block_header = current_size;
-		ptr[index] -> next = NULL; 
+		head -> block_header = block_size; 
+		head -> next = NULL; 
 	}
-	head = ptr[index]; 
-	current_size = *(size_t*)sbrk_ptr; 
-    	current_size = size; 
-	ptr[index] -> block_header = current_size;
-	//go to the next block and make next pointer point to the next block:
-	sbrk_ptr += size;
-	ptr[index] -> next = (struct*)sbrk_ptr;
-	i += 1; 
+	else {
+		head -> block_header = block_size; 
+		sbrk_ptr += block_size; 
+		head -> next = *(block*)sbrk_ptr;
+		i += 1;
 	}
-    return head; 
+    
+   }
+   return ptr[index]; 
 } 
 
    
-//return a pointer to block of memory without metadata => +8
+
 void *malloc(size_t size) {
 
-    void *returned_ptr; 
+    struct block *returned_ptr; 
     int index = 0;
     int bit = 0; 
     size_t header = 0; 
+    struct block *head; 
+
 
     if(size == 0 || size < 0) {
     	return NULL; 
@@ -120,46 +123,47 @@ void *malloc(size_t size) {
 
     if(size <= 4088) {
     	index = block_index(size);
+	head = ptr[index]; 
 	//checking if linked list is made:
-	if(ptr[index] == NULL) {
-		free_list(size);
-		bit = ptr[index] -> block_header; 
+	if(head == NULL) {
+		head = free_list(size);
+		bit = head -> block_header; 
 		if((bit & 1) == 0) { 
-			returned_ptr = ptr[index]; 
+			returned_ptr = head;
+			header = (head -> block_header) | 1; 
+			//set flag
+		        head -> block_header = header; 	
 			returned_ptr += 1; 
-			header = (ptr[index] -> block_header) | 1; 
-		        ptr[index] -> block_header = header; 	 
 			return returned_ptr; 
 		
 		//else if block is not free: 
 		} else {
-			while(ptr[index] != NULL){
-				bit = ptr[index] -> block_header; 
+			while(head != NULL){
+				bit = head -> block_header; 
 				if((bit & 1) == 0) {
-					returned_ptr = (ptr[index]); 
-					returned_ptr += 1;  
-					header = (ptr[index] -> block_header) | 1; 
-					ptr[index] -> block_header = header; 
+					returned_ptr = head;  
+					header = (head -> block_header) | 1; 
+					head -> block_header = header; 
+					returned_ptr += 1; 
 					return returned_ptr; 
-				} 
-				else {
-					ptr[index] = ptr[index] -> next; 
+				} else {
+					head = head -> next; 
 				}
 			}
 		}
 	}
-	//if list has already been made: 
-	else {
-		while(ptr[index] != NULL){
-			bit = ptr[index] -> block_header; 
+      //if list has already been made: 
+      else {
+		while(head != NULL){
+			bit = head -> block_header; 
 			if((bit & 1) == 0) {
-				returned_ptr = ptr[index] + 1; 
-				header = (ptr[index] -> block_header) | 1;
-				ptr[index] -> block_header = header; 
+				returned_ptr = head; 
+				header = (head -> block_header) | 1;
+				head -> block_header = header; 
+				returned_ptr += 1; 
 				return returned_ptr; 
-			}
-			else {
-				ptr[index] = ptr[index] -> next; 
+			} else {
+				head = head -> next; 
 			}
 		}
 	}
