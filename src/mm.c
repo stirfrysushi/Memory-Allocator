@@ -57,34 +57,112 @@ static inline __attribute__((unused)) int block_index(size_t x) {
 
 
 /* create a free list */ 
-static typedef struct block {
+typedef struct block {
     
-    int block_header; 
-    struct block *next; 
-    struct block *prev;
+    size_t block_header; 
+    struct block *next;  
 
-} block;
+} block; 
 
 /*array of pointers */ 
-static block **ptr;
- 
-/*
- * You must implement malloc().  Your implementation of malloc() must be
- * the multi-pool allocator described in the project handout.
- */
+struct block **ptr; 
+
+//creating a free list 
+//how to keep track of the first *block? 
+static void *free_list(size_t size) {
+    int index = 0;
+    size_t current_size = 0; 
+    size_t block_size = 0;
+    int number_of_blocks = 0;
+    void *sbrk_ptr;  
+    int i = 0;
+    struct block *head;  
+    
+    index = block_index(size + 8);
+    block_size = 1 << index;
+    number_of_blocks = CHUNK_SIZE/block_size; 
+    sbrk_ptr = sbrk(CHUNK_SIZE); 
+    
+    while(i < number_of_blocks) {
+
+    	//for last block, next -> NULL:
+	if(i == number_of_blocks) {
+		current_size = *(size_t*)sbrk_ptr; 
+		current_size = size; 
+		ptr[index] -> block_header = current_size;
+		ptr[index] -> next = NULL; 
+	}
+	head = ptr[index]; 
+	current_size = *(size_t*)sbrk_ptr; 
+    	current_size = size; 
+	ptr[index] -> block_header = current_size;
+	//go to the next block and make next pointer point to the next block:
+	sbrk_ptr += size;
+	ptr[index] -> next = *(struct*)sbrk_ptr;
+	i += 1; 
+	}
+    return head; 
+} 
+
+   
+//return a pointer to block of memory without metadata => +8
 void *malloc(size_t size) {
 
+    void *returned_ptr; 
+    int index = 0;
+    int bit = 0; 
+    size_t header = 0; 
+
     if(size == 0 || size < 0) {
-
     	return NULL; 
+    }
 
-    } else {
-    	
-	for (i = 0; i != 13; i++) {
-		*ptr[i] == NULL; 
-	} 
-
-    
+    if(size <= 4088) {
+    	index = block_index(size);
+	//checking if linked list is made:
+	if(ptr[index] == NULL) {
+		free_list(size);
+		bit = ptr[index] -> block_header; 
+		if((bit & 1) == 0) { 
+			returned_ptr = ptr[index]; 
+			returned_ptr += 1; 
+			header = (ptr[index] -> block_header) | 1; 
+		        ptr[index] -> block_header = header; 	 
+			return returned_ptr; 
+		
+		//else if block is not free: 
+		} else {
+			while(ptr[index] != NULL){
+				bit = ptr[index] -> block_header; 
+				if((bit & 1) == 0) {
+					returned_ptr = (ptr[index]); 
+					returned_ptr += 1;  
+					header = (ptr[index] -> block_header) | 1; 
+					ptr[index] -> block_header = header; 
+					return returned_ptr; 
+				} 
+				else {
+					ptr[index] = ptr[index] -> next; 
+				}
+			}
+		}
+	}
+	//if list has already been made: 
+	else {
+		while(ptr[index] != NULL){
+			bit = ptr[index] -> block_header; 
+			if((bit & 1) == 0) {
+				returned_ptr = ptr[index] + 1; 
+				header = (ptr[index] -> block_header) | 1;
+				ptr[index] -> block_header = header; 
+				return returned_ptr; 
+			}
+			else {
+				ptr[index] = ptr[index] -> next; 
+			}
+		}
+	}
+    } 
     return bulk_alloc(size);
 }
 
@@ -118,8 +196,11 @@ void *calloc(size_t nmemb, size_t size) {
  * implementation!
  */
 void *realloc(void *ptr, size_t size) {
-    fprintf(stderr, "Realloc is not implemented!\n");
-    return NULL;
+	if(ptr == NULL) {
+		return malloc(size); 
+	} else {
+		return NULL; 
+	}
 }
 
 /*
