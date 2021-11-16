@@ -64,17 +64,17 @@ typedef struct block {
 } block; 
 
 /*array of *block pointers */ 
-struct block *ptr[13] = {NULL}; 
+struct block *ptr[13] = {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}; 
 
 //creating a free list and return pointer to first block: 
 static void *free_list(size_t size) {
    
     //create free list table for specific index 
     int index = 0; 
-    size_t block_size = 0;
+    int block_size = 0;
     int number_of_blocks = 0;
     void *sbrk_ptr;
-    void *temp; 
+    struct block *temp; 
     int i = 0;
     
     index = block_index(size);
@@ -85,14 +85,22 @@ static void *free_list(size_t size) {
     sbrk_ptr = sbrk(CHUNK_SIZE);
 
     ptr[index] = sbrk_ptr; 
-    temp = ptr[index]; 
     while(i <= number_of_blocks){
+    	//last block
     	if(i == number_of_blocks) {
 		ptr[index] -> block_header = block_size; 
 		ptr[index] -> next = NULL;
-	} 
-    	ptr[index] -> block_header = block_size; 
-	//move sbrk_ptr by block_size bytes: 
+	}
+	//first block
+	if(i == 0){
+		 ptr[index] -> block_header = block_size; 
+		 sbrk_ptr += block_size; 
+		 ptr[index] -> next = sbrk_ptr; 
+		 temp = ptr[index]; 
+		 i+= 1;
+	}
+
+    	ptr[index] -> block_header = block_size;
 	sbrk_ptr += block_size; 
 	ptr[index] -> next = sbrk_ptr; 
 	i += 1;
@@ -113,16 +121,15 @@ void *malloc(size_t size) {
     }
 
     if(size <= 4088) {
-    	index = block_index(size);
-	head = ptr[index]; 
+    	index = block_index(size);  
 	//checking if list is made:
-	if(head == NULL) {
-		//free list return a void pointer pointing to the first block 	
+	if(ptr[index] == NULL) {
+		//free list return a pointer pointing to the first block 	
 		head = free_list(size);
 		//get bit to see if free: 
 		bit = head -> block_header; 
 		if((bit & 1) == 0) { 
-			returned_ptr = head;
+			returned_ptr = (void*)head;
 			//set flag 
 			header = (head -> block_header) | 1; 
 		        head -> block_header = header;
@@ -133,7 +140,7 @@ void *malloc(size_t size) {
 			while(head != NULL){
 				bit = head -> block_header; 
 				if((bit & 1) == 0) {
-					returned_ptr = head;  
+					returned_ptr =(void*)head;  
 					header = (head -> block_header) | 1;
 					head -> block_header = header; 
 					returned_ptr += 8; 
@@ -146,23 +153,6 @@ void *malloc(size_t size) {
 			}
 		}
 	} 
-      //if list has already been made: 
-      else {
-		while(head != NULL){
-			bit = head -> block_header; 
-			if((bit & 1) == 0) {
-				returned_ptr = head; 
-				header = (head -> block_header) | 1;
-				head -> block_header = header; 
-				returned_ptr += 8; 
-				return returned_ptr; 
-			} else {
-				if(head -> next != NULL) {
-					head = head -> next; 
-				} 
-			}
-		}
-	}
     } 
     return bulk_alloc(size);
 }
