@@ -152,8 +152,25 @@ void *malloc(size_t size) {
 				}
 			}
 		}
-	} 
-    } 
+       }
+       //if list is made 
+       if(ptr[index] != NULL) {
+		//while(ptr[index] != NULL) {
+       			bit = ptr[index] -> block_header; 
+			if((bit & 1) == 0){
+				returned_ptr = (void*)ptr[index]; 
+				header = (ptr[index] -> block_header) | 1; 
+				ptr[index] -> block_header = header; 
+				returned_ptr += 8; 
+				return returned_ptr; 
+			} else {
+				if(ptr[index] -> next != NULL) {
+					ptr[index] = ptr[index] -> next; 
+				}
+			}
+
+      }
+    }
     return bulk_alloc(size);
 }
 
@@ -169,6 +186,7 @@ void *malloc(size_t size) {
  * for this (see man 3 memset).
  */
 void *calloc(size_t nmemb, size_t size) {
+   
     void *ptr = bulk_alloc(nmemb * size);
     memset(ptr, 0, nmemb * size);
     return ptr;
@@ -202,5 +220,9 @@ void *realloc(void *ptr, size_t size) {
  * The given implementation does nothing.
  */
 void free(void *ptr) {
-    return;
+    if(ptr == NULL) {
+	return; 
+    } else {
+    	return;
+    }
 }
