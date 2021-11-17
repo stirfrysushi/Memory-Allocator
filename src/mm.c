@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h> 
+#include <unistd.h>
+#include <stdlib.h> 
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -64,7 +65,7 @@ typedef struct block {
 } block; 
 
 /*array of *block pointers */ 
-struct block *ptr[13] = {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}; 
+struct block *ptr[13] = { NULL }; 
 
 //creating a free list and return pointer to first block: 
 static void *free_list(size_t size) {
@@ -88,19 +89,19 @@ static void *free_list(size_t size) {
     while(i <= number_of_blocks){
     	//last block
     	if(i == number_of_blocks) {
-		ptr[index] -> block_header = block_size; 
+		ptr[index] -> block_header = size; 
 		ptr[index] -> next = NULL;
 	}
 	//first block
 	if(i == 0){
-		 ptr[index] -> block_header = block_size; 
+		 ptr[index] -> block_header = size; 
 		 sbrk_ptr += block_size; 
 		 ptr[index] -> next = sbrk_ptr; 
 		 temp = ptr[index]; 
 		 i+= 1;
 	}
 
-    	ptr[index] -> block_header = block_size;
+    	ptr[index] -> block_header = size;
 	sbrk_ptr += block_size; 
 	ptr[index] -> next = sbrk_ptr; 
 	i += 1;
@@ -133,8 +134,8 @@ void *malloc(size_t size) {
 			//set flag 
 			header = (head -> block_header) | 1; 
 		        head -> block_header = header;
-			//move over 8 bytes to get to data: 
-			returned_ptr += 8; 
+			//should the ptr include next ptr or only block_header?  
+			returned_ptr += 8;  
 			return returned_ptr; 
 		} else {
 			while(head != NULL){
@@ -153,23 +154,7 @@ void *malloc(size_t size) {
 			}
 		}
        }
-       //if list is made 
-       if(ptr[index] != NULL) {
-		//while(ptr[index] != NULL) {
-       			bit = ptr[index] -> block_header; 
-			if((bit & 1) == 0){
-				returned_ptr = (void*)ptr[index]; 
-				header = (ptr[index] -> block_header) | 1; 
-				ptr[index] -> block_header = header; 
-				returned_ptr += 8; 
-				return returned_ptr; 
-			} else {
-				if(ptr[index] -> next != NULL) {
-					ptr[index] = ptr[index] -> next; 
-				}
-			}
 
-      }
     }
     return bulk_alloc(size);
 }
@@ -186,10 +171,19 @@ void *malloc(size_t size) {
  * for this (see man 3 memset).
  */
 void *calloc(size_t nmemb, size_t size) {
-   
-    void *ptr = bulk_alloc(nmemb * size);
-    memset(ptr, 0, nmemb * size);
-    return ptr;
+    if(nmemb == 0 || size == 0) {
+	return NULL; 
+    } 
+    if((nmemb * size) <= 4088) {
+	void *ptr = malloc(nmemb * size); 
+	memset(ptr,0, nmemb * size); 
+	return ptr; 
+    } 
+    else { 
+    	void *ptr = bulk_alloc(nmemb * size);
+    	memset(ptr, 0, nmemb * size);
+    	return ptr;
+    } 
 }
 
 /*
@@ -205,11 +199,41 @@ void *calloc(size_t nmemb, size_t size) {
  * implementation!
  */
 void *realloc(void *ptr, size_t size) {
+	struct block *struct_ptr; 
+	size_t user_size; 
+	int index = 0; 
+	int block_size = 0;
+	void *returned_ptr; 
+
 	if(ptr == NULL) {
 		return malloc(size); 
-	} else {
-		return NULL; 
 	}
+	if(size == 0 && ptr != NULL) {
+		free(ptr); 
+	}
+
+	ptr = ptr - sizeof(struct block); 
+	struct_ptr = (block*)ptr; 
+	//get the initial size of the block 
+	user_size = struct_ptr -> block_header; 
+	index = block_index(user_size); 
+	block_size = 1 << index; 
+	//if there is still space
+	if(block_size > size) {
+		return ptr; 
+	} else {
+		//what if user request more than 4088? 
+
+		//allocate new block by using malloc 
+		returned_ptr = malloc(size); 
+		//copy user's stuff into new block
+		returned_ptr = memcpy(returned_ptr,ptr,size);
+		//set free old ptr
+		free(ptr);  
+		return returned_ptr; 
+	}
+
+
 }
 
 /*
