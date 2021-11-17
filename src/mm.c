@@ -1,7 +1,7 @@
-#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <stdlib.h> 
+#include <stdlib.h>
+#include <string.h>
 
 /* The standard allocator interface from stdlib.h.  These are the
  * functions you must implement, more information on each function is
@@ -74,8 +74,8 @@ static void *free_list(size_t size) {
     int index = 0; 
     int block_size = 0;
     int number_of_blocks = 0;
-    void *sbrk_ptr;
-    struct block *temp; 
+    void *sbrk_ptr; 
+    struct block *new_block; 
     int i = 0;
     
     index = block_index(size);
@@ -84,36 +84,34 @@ static void *free_list(size_t size) {
 
     //void pointer to chunk of memory  
     sbrk_ptr = sbrk(CHUNK_SIZE);
+    new_block = (block*)sbrk_ptr; 
+    ptr[index] = new_block; 
 
-    ptr[index] = sbrk_ptr; 
-    while(i <= number_of_blocks){
+    //initialize the first block:
+    ptr[index] -> block_header = size; 
+    sbrk_ptr += block_size; 
+    ptr[index] -> next = sbrk_ptr; 
+
+    while(i <= number_of_blocks - 1){
     	//last block
-    	if(i == number_of_blocks) {
-		ptr[index] -> block_header = size; 
-		ptr[index] -> next = NULL;
-	}
-	//first block
-	if(i == 0){
-		 ptr[index] -> block_header = size; 
-		 sbrk_ptr += block_size; 
-		 ptr[index] -> next = sbrk_ptr; 
-		 temp = ptr[index]; 
-		 i+= 1;
+    	if(i == number_of_blocks - 1) {
+		new_block-> block_header = size; 
+		new_block -> next = NULL;
 	}
 
-    	ptr[index] -> block_header = size;
+    	new_block -> block_header = size;
 	sbrk_ptr += block_size; 
-	ptr[index] -> next = sbrk_ptr; 
+	new_block -> next = sbrk_ptr; 
 	i += 1;
    }  
-   return temp; 
+   return ptr[index]; 
 } 
 
 void *malloc(size_t size) {
 
     void *returned_ptr; 
     int index = 0;
-    int bit = 0; 
+    size_t  bit = 0; 
     size_t header = 0; 
     struct block *head; 
 
@@ -133,8 +131,7 @@ void *malloc(size_t size) {
 			returned_ptr = (void*)head;
 			//set flag 
 			header = (head -> block_header) | 1; 
-		        head -> block_header = header;
-			//should the ptr include next ptr or only block_header?  
+		        head -> block_header = header;  
 			returned_ptr += 8;  
 			return returned_ptr; 
 		} else {
@@ -156,20 +153,21 @@ void *malloc(size_t size) {
        }
        if(ptr[index] != NULL) {
        		head = ptr[index]; 
-		bit = head -> block_header; 
+		bit = head -> block_header;
+		while(head != NULL) {
 		if((bit & 1) == 0) {
 			returned_ptr = (void*)head; 
 			header = (head -> block_header) | 1; 
 			head -> block_header = header; 
 			returned_ptr += 8; 
 			return returned_ptr; 
-		} else { 
+		} else {
 			if(head -> next != NULL) {
 				head = head -> next; 
 			}
 		}
-       } 
-
+	    }
+       }
     }
     return bulk_alloc(size);
 }
@@ -237,8 +235,7 @@ void *realloc(void *ptr, size_t size) {
 	if(block_size > size) {
 		return ptr; 
 	} else {
-		//what if user request more than 4088? 
-
+		
 		//allocate new block by using malloc 
 		returned_ptr = malloc(size); 
 		//copy user's stuff into new block
