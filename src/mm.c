@@ -154,13 +154,28 @@ void *malloc(size_t size) {
 			}
 		}
        }
+       if(ptr[index] != NULL) {
+       		head = ptr[index]; 
+		bit = head -> block_header; 
+		if((bit & 1) == 0) {
+			returned_ptr = (void*)head; 
+			header = (head -> block_header) | 1; 
+			head -> block_header = header; 
+			returned_ptr += 8; 
+			return returned_ptr; 
+		} else { 
+			if(head -> next != NULL) {
+				head = head -> next; 
+			}
+		}
+       } 
 
     }
     return bulk_alloc(size);
 }
 
 /*
- * You must also implement calloc().  It should create allocations
+  You must also implement calloc().  It should create allocations
  * compatible with those created by malloc().  In particular, any
  * allocations of a total size <= 4088 bytes must be pool allocated,
  * while larger allocations must use the bulk allocator.
@@ -212,7 +227,7 @@ void *realloc(void *ptr, size_t size) {
 		free(ptr); 
 	}
 
-	ptr = ptr - sizeof(struct block); 
+	ptr = ptr - 8; 
 	struct_ptr = (block*)ptr; 
 	//get the initial size of the block 
 	user_size = struct_ptr -> block_header; 
@@ -243,10 +258,14 @@ void *realloc(void *ptr, size_t size) {
  *
  * The given implementation does nothing.
  */
+
+ //set flag bit back to 0, put it back on the free list, move pointer 
 void free(void *ptr) {
+   
     if(ptr == NULL) {
 	return; 
     } else {
-    	return;
+    	 
+	 
     }
-}
+} 
