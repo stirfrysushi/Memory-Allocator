@@ -52,7 +52,7 @@ extern void bulk_free(void *ptr, size_t size);
 static inline __attribute__((unused)) int block_index(size_t x) {
     if (x <= 8) {
         return 5;
-    } else {
+    } else { 
         return 32 - __builtin_clz((unsigned int)x + 7);
     }
 }
@@ -68,9 +68,7 @@ typedef struct block {
 struct block *array_ptr[13] = { NULL }; 
 
 //creating a free list and return pointer to first block: 
-static void *free_list(size_t size) {
-   
-    //create free list table for specific index 
+static void *free_list(size_t size) {	
     int index = 0; 
     int block_size = 0;
     int number_of_blocks = 0;
@@ -95,17 +93,20 @@ static void *free_list(size_t size) {
 
     //setting up the linked list after first block 
     while(i <= number_of_blocks - 2){
-	other_block = (block*)sbrk_ptr; 
-	//last block 
-    	if(i == number_of_blocks - 2) {
-		other_block -> block_header = size; 
-		other_block -> next = NULL;
+    other_block = (block*)sbrk_ptr; 
+    //last block 
+        if(i == number_of_blocks - 2) {
+        other_block -> block_header = size; 
+        other_block -> next = NULL;
 	}
 
+	else {
     	other_block -> block_header = size;
-	sbrk_ptr += block_size; 
-	other_block-> next = sbrk_ptr; 
-	i += 1;
+    	sbrk_ptr += block_size; 
+    	other_block-> next = sbrk_ptr; 
+	}
+
+	i += 1; 
    }  
    return first_block; 
 } 
@@ -124,11 +125,9 @@ void *malloc(size_t size) {
     	index = block_index(size); 
 	if(array_ptr[index] == NULL) {
 
-		//free list return a pointer pointing to the first block 	
-		//change new head 
+		//free list return a pointer pointing to the first block 	 
 		head = free_list(size);
-		array_ptr[index] = head; 
-		array_ptr[index] = array_ptr[index] -> next; 
+		head = head -> next; 
 		returned_ptr = (void*)head; 
 		returned_ptr += 8; 
 		return returned_ptr; 
@@ -195,6 +194,9 @@ void *realloc(void *ptr, size_t size) {
 	int index = 0; 
 	int block_size = 0;
 	void *returned_ptr; 
+	void *temp; 
+
+	temp = ptr; 
 
 	if(ptr == NULL) {
 		return malloc(size); 
@@ -215,7 +217,7 @@ void *realloc(void *ptr, size_t size) {
 	} else {
 
 		returned_ptr = malloc(size); 
-		returned_ptr = memcpy(returned_ptr,ptr,size);
+		returned_ptr = memcpy(returned_ptr,temp,size);
 		free(ptr);  
 		return returned_ptr; 
 	}
@@ -243,23 +245,41 @@ void free(void *ptr) {
 	if(ptr == NULL) {
 		return; 
 	} else {
+		//get the block with the metadata 
 		ptr = ptr - 8; 
+		//get size 
 		user_size = *(size_t*)ptr; 
 		if(user_size > 4088){
+			//ptr for bulk_free? 
 			bulk_free(ptr, user_size + 8); 
 			return; 
 		} else {
 			index = block_index(user_size); 
-			if(array_ptr[index] -> next != NULL){
-				while(array_ptr[index] -> next != NULL){
-					array_ptr[index] = array_ptr[index] -> next;
-				}
+			
+			//if free list is null: 
+			if(array_ptr[index] == NULL) {
+				array_ptr[index] = (block*)ptr; 
+				array_ptr[index] -> block_header = user_size; 
+				array_ptr[index] -> next = NULL; 
 			} 
-			array_ptr[index] -> next = temp - 8; 
-			new_block = (block*)temp; 
-			new_block -> block_header = user_size; 
-			new_block -> next = NULL; 
-			return; 
+			//if free list is not null
+			else {
+				if(array_ptr[index] -> next == NULL) {
+					array_ptr[index] -> next = (block*)ptr; 
+					array_ptr[index] = array_ptr[index] -> next; 
+					array_ptr[index] -> block_header = user_size; 
+					array_ptr[index] -> next = NULL; 
+					return; 
+				} else { 
+					while(array_ptr[index] -> next != NULL) {
+						array_ptr[index] = array_ptr[index] -> next; 
+					} 
+					array_ptr[index] -> block_header = user_size; 
+					array_ptr[index] -> next = NULL; 
+					return;
+				}
+			}
 		}
 	}
 }
+
