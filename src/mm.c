@@ -255,7 +255,7 @@ void free(void *ptr) {
 					array_ptr[index] = array_ptr[index] -> next;
 				}
 			} 
-			array_ptr[index] -> next = temp; 
+			array_ptr[index] -> next = temp - 8; 
 			new_block = (block*)temp; 
 			new_block -> block_header = user_size; 
 			new_block -> next = NULL; 
