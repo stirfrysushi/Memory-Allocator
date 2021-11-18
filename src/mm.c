@@ -65,7 +65,7 @@ typedef struct block {
 } block; 
 
 /*array of *block pointers */ 
-struct block *ptr[13] = { NULL }; 
+struct block *array_ptr[13] = { NULL }; 
 
 //creating a free list and return pointer to first block: 
 static void *free_list(size_t size) {
@@ -75,7 +75,8 @@ static void *free_list(size_t size) {
     int block_size = 0;
     int number_of_blocks = 0;
     void *sbrk_ptr; 
-    struct block *new_block; 
+    struct block *first_block; 
+    struct block *other_block; 
     int i = 0;
     
     index = block_index(size);
@@ -84,35 +85,35 @@ static void *free_list(size_t size) {
 
     //void pointer to chunk of memory  
     sbrk_ptr = sbrk(CHUNK_SIZE);
-    new_block = (block*)sbrk_ptr; 
-    ptr[index] = new_block; 
+    first_block = (block*)sbrk_ptr; 
+    array_ptr[index] = first_block; 
 
     //initialize the first block:
-    ptr[index] -> block_header = size; 
+    array_ptr[index] -> block_header = size; 
     sbrk_ptr += block_size; 
-    ptr[index] -> next = sbrk_ptr; 
+    array_ptr[index] -> next = sbrk_ptr; 
 
-    while(i <= number_of_blocks - 1){
-    	//last block
-    	if(i == number_of_blocks - 1) {
-		new_block-> block_header = size; 
-		new_block -> next = NULL;
+    //setting up the linked list after first block 
+    while(i <= number_of_blocks - 2){
+	other_block = (block*)sbrk_ptr; 
+	//last block 
+    	if(i == number_of_blocks - 2) {
+		other_block -> block_header = size; 
+		other_block -> next = NULL;
 	}
 
-    	new_block -> block_header = size;
+    	other_block -> block_header = size;
 	sbrk_ptr += block_size; 
-	new_block -> next = sbrk_ptr; 
+	other_block-> next = sbrk_ptr; 
 	i += 1;
    }  
-   return ptr[index]; 
+   return first_block; 
 } 
 
 void *malloc(size_t size) {
 
     void *returned_ptr; 
-    int index = 0;
-    size_t  bit = 0; 
-    size_t header = 0; 
+    int index = 0; 
     struct block *head; 
 
     if(size == 0 || size < 0) {
@@ -120,56 +121,33 @@ void *malloc(size_t size) {
     }
 
     if(size <= 4088) {
-    	index = block_index(size);  
-	//checking if list is made:
-	if(ptr[index] == NULL) {
+    	index = block_index(size); 
+	if(array_ptr[index] == NULL) {
+
 		//free list return a pointer pointing to the first block 	
+		//change new head 
 		head = free_list(size);
-		//get bit to see if free: 
-		bit = head -> block_header; 
-		if((bit & 1) == 0) { 
-			returned_ptr = (void*)head;
-			//set flag 
-			header = (head -> block_header) | 1; 
-		        head -> block_header = header;  
-			returned_ptr += 8;  
-			return returned_ptr; 
-		} else {
-			while(head != NULL){
-				bit = head -> block_header; 
-				if((bit & 1) == 0) {
-					returned_ptr =(void*)head;  
-					header = (head -> block_header) | 1;
-					head -> block_header = header; 
-					returned_ptr += 8; 
-					return returned_ptr; 
-				} else {
-					if(head -> next != NULL){ 
-						head = head -> next;
-					}	
-				}
-			}
-		}
-       }
-       if(ptr[index] != NULL) {
-       		head = ptr[index]; 
-		bit = head -> block_header;
-		while(head != NULL) {
-		if((bit & 1) == 0) {
-			returned_ptr = (void*)head; 
-			header = (head -> block_header) | 1; 
-			head -> block_header = header; 
-			returned_ptr += 8; 
-			return returned_ptr; 
-		} else {
-			if(head -> next != NULL) {
-				head = head -> next; 
-			}
-		}
-	    }
-       }
+		array_ptr[index] = head; 
+		array_ptr[index] = array_ptr[index] -> next; 
+		returned_ptr = (void*)head; 
+		returned_ptr += 8; 
+		return returned_ptr; 
+
+	} else {
+
+		head = array_ptr[index]; 
+		returned_ptr = (void*)head; 
+		returned_ptr += 8; 
+		return returned_ptr; 
+	}
+
+    } 
+    else {
+     	returned_ptr = bulk_alloc(size + 8); 
+	*(size_t*)returned_ptr = size; 
+	returned_ptr += sizeof(size_t); 
+	return returned_ptr; 
     }
-    return bulk_alloc(size);
 }
 
 /*
@@ -212,7 +190,7 @@ void *calloc(size_t nmemb, size_t size) {
  * implementation!
  */
 void *realloc(void *ptr, size_t size) {
-	struct block *struct_ptr; 
+
 	size_t user_size; 
 	int index = 0; 
 	int block_size = 0;
@@ -225,22 +203,19 @@ void *realloc(void *ptr, size_t size) {
 		free(ptr); 
 	}
 
+	//get block current size: 
 	ptr = ptr - 8; 
-	struct_ptr = (block*)ptr; 
-	//get the initial size of the block 
-	user_size = struct_ptr -> block_header; 
+	user_size = *(size_t*)ptr; 
 	index = block_index(user_size); 
 	block_size = 1 << index; 
 	//if there is still space
-	if(block_size > size) {
+	if(block_size - 8 > size) {
 		return ptr; 
+
 	} else {
-		
-		//allocate new block by using malloc 
+
 		returned_ptr = malloc(size); 
-		//copy user's stuff into new block
 		returned_ptr = memcpy(returned_ptr,ptr,size);
-		//set free old ptr
 		free(ptr);  
 		return returned_ptr; 
 	}
@@ -256,13 +231,35 @@ void *realloc(void *ptr, size_t size) {
  * The given implementation does nothing.
  */
 
- //set flag bit back to 0, put it back on the free list, move pointer 
+
 void free(void *ptr) {
-   
-    if(ptr == NULL) {
-	return; 
-    } else {
-    	 
-	 
-    }
-} 
+	size_t user_size; 
+	int index = 0; 
+	void *temp; 
+	struct block *new_block; 
+
+	temp = ptr; 
+
+	if(ptr == NULL) {
+		return; 
+	} else {
+		ptr = ptr - 8; 
+		user_size = *(size_t*)ptr; 
+		if(user_size > 4088){
+			bulk_free(ptr, user_size + 8); 
+			return; 
+		} else {
+			index = block_index(user_size); 
+			if(array_ptr[index] -> next != NULL){
+				while(array_ptr[index] -> next != NULL){
+					array_ptr[index] = array_ptr[index] -> next;
+				}
+			} 
+			array_ptr[index] -> next = temp; 
+			new_block = (block*)temp; 
+			new_block -> block_header = user_size; 
+			new_block -> next = NULL; 
+			return; 
+		}
+	}
+}
