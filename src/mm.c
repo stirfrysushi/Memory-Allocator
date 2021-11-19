@@ -57,7 +57,6 @@ static inline __attribute__((unused)) int block_index(size_t x) {
     }
 }
 
-
 /* create a free list */ 
 typedef struct block {
     size_t block_header; 
@@ -65,10 +64,12 @@ typedef struct block {
 } block; 
 
 /*array of *block pointers */ 
-struct block *array_ptr[13] = { NULL }; 
+struct block *array_ptr[13] = { NULL };  
 
 //creating a free list and return pointer to first block: 
-static void *free_list(size_t size) {	
+static void *free_list(size_t size) {
+   
+    //create free list table for specific index 
     int index = 0; 
     int block_size = 0;
     int number_of_blocks = 0;
@@ -81,71 +82,73 @@ static void *free_list(size_t size) {
     block_size = 1 << index;
     number_of_blocks = CHUNK_SIZE/block_size;
 
-    //void pointer to chunk of memory  
+    //setting up first block  
     sbrk_ptr = sbrk(CHUNK_SIZE);
-    first_block = (block*)sbrk_ptr; 
-    array_ptr[index] = first_block; 
-
-    //initialize the first block:
-    array_ptr[index] -> block_header = size; 
+    first_block = (block*)sbrk_ptr;
+    first_block -> block_header = size;
     sbrk_ptr += block_size; 
-    array_ptr[index] -> next = sbrk_ptr; 
+
+    //question: should sbrk_ptr be casted to block for next? 
+    first_block -> next = (block*)sbrk_ptr; 
+
+    array_ptr[index] = first_block; 
 
     //setting up the linked list after first block 
     while(i <= number_of_blocks - 2){
     other_block = (block*)sbrk_ptr; 
+
     //last block 
         if(i == number_of_blocks - 2) {
         other_block -> block_header = size; 
         other_block -> next = NULL;
-	}
+    }
 
-	else {
-    	other_block -> block_header = size;
-    	sbrk_ptr += block_size; 
-    	other_block-> next = sbrk_ptr; 
-	}
-
-	i += 1; 
+    other_block -> block_header = size;
+    sbrk_ptr += block_size; 
+    other_block-> next = sbrk_ptr; 
+    i += 1;
    }  
-   return first_block; 
+   //returning the first block
+   return array_ptr[index]; 
 } 
 
 void *malloc(size_t size) {
 
     void *returned_ptr; 
     int index = 0; 
-    struct block *head; 
+ 
 
     if(size == 0 || size < 0) {
-    	return NULL; 
+        return NULL; 
     }
 
     if(size <= 4088) {
-    	index = block_index(size); 
-	if(array_ptr[index] == NULL) {
+        index = block_index(size); 
+	
+	//checking if free list is initialized : 
+    	if(array_ptr[index] == NULL) {
 
-		//free list return a pointer pointing to the first block 	 
-		head = free_list(size);
-		head = head -> next; 
-		returned_ptr = (void*)head; 
-		returned_ptr += 8; 
-		return returned_ptr; 
+        	//free list return a pointer pointing to the first block     
+        	array_ptr[index] = free_list(size);
+        	returned_ptr = (void*)array_ptr[index]; 
+        	returned_ptr += 8; 
+		//change head
+		array_ptr[index] = array_ptr[index] -> next; 
+        	return returned_ptr; 
 
-	} else {
-
-		head = array_ptr[index]; 
-		returned_ptr = (void*)head; 
-		returned_ptr += 8; 
-		return returned_ptr; 
+    	} else {	
+        	returned_ptr = (void*)array_ptr[index];
+        	returned_ptr += 8; 
+		array_ptr[index] = array_ptr[index] -> next; 
+        	return returned_ptr; 
 	}
-
-    } 
+    }
+    //if size > 4088 
     else {
-     	returned_ptr = bulk_alloc(size + 8); 
-	*(size_t*)returned_ptr = size; 
-	returned_ptr += sizeof(size_t); 
-	return returned_ptr; 
+    returned_ptr = bulk_alloc(size + 8); 
+    *(size_t*)returned_ptr = size + 8; 
+    returned_ptr += sizeof(size_t); 
+    return returned_ptr; 
     }
 }
 
@@ -162,17 +165,17 @@ void *malloc(size_t size) {
  */
 void *calloc(size_t nmemb, size_t size) {
     if(nmemb == 0 || size == 0) {
-	return NULL; 
+    return NULL; 
     } 
     if((nmemb * size) <= 4088) {
-	void *ptr = malloc(nmemb * size); 
-	memset(ptr,0, nmemb * size); 
-	return ptr; 
+    void *ptr = malloc(nmemb * size); 
+    memset(ptr,0, nmemb * size); 
+    return ptr; 
     } 
     else { 
-    	void *ptr = bulk_alloc(nmemb * size);
-    	memset(ptr, 0, nmemb * size);
-    	return ptr;
+        void *ptr = bulk_alloc(nmemb * size);
+        memset(ptr, 0, nmemb * size);
+        return ptr;
     } 
 }
 
@@ -190,38 +193,38 @@ void *calloc(size_t nmemb, size_t size) {
  */
 void *realloc(void *ptr, size_t size) {
 
-	size_t user_size; 
-	int index = 0; 
-	int block_size = 0;
-	void *returned_ptr; 
-	void *temp; 
+    size_t user_size; 
+    int index = 0; 
+    int block_size = 0;
+    void *returned_ptr;
+    void *temp; 
 
-	temp = ptr; 
+    temp = ptr;
 
-	if(ptr == NULL) {
-		return malloc(size); 
-	}
-	if(size == 0 && ptr != NULL) {
-		free(ptr); 
-	}
+    if(ptr == NULL) {
+        return malloc(size); 
+    }
+    if(size == 0 && ptr != NULL) {
+        free(ptr); 
+    }
 
-	//get block current size: 
-	ptr = ptr - 8; 
-	user_size = *(size_t*)ptr; 
-	index = block_index(user_size); 
-	block_size = 1 << index; 
-	//if there is still space
-	if(block_size - 8 > size) {
-		return ptr; 
+    //get block current size: 
+    ptr = ptr - 8; 
+    user_size = *(size_t*)ptr; 
+    index = block_index(user_size); 
+    block_size = 1 << index; 
+    //if there is still space
+    if(block_size - 8 >= size) {
+        return ptr; 
 
-	} else {
+    } else {
 
-		returned_ptr = malloc(size); 
-		returned_ptr = memcpy(returned_ptr,temp,size);
-		free(ptr);  
-		return returned_ptr; 
-	}
-
+    	//question - should memcpy take in user_size or size requested ? 
+        returned_ptr = malloc(size); 
+        returned_ptr = memcpy(returned_ptr,temp,user_size);
+        free(ptr);  
+        return returned_ptr; 
+    }
 
 }
 
@@ -235,51 +238,47 @@ void *realloc(void *ptr, size_t size) {
 
 
 void free(void *ptr) {
-	size_t user_size; 
-	int index = 0; 
-	void *temp; 
-	struct block *new_block; 
+    size_t user_size = 0;
+    int index = 0;
+    struct block *new_block; 
 
-	temp = ptr; 
-
-	if(ptr == NULL) {
+    if(ptr == NULL) {
+        return; 
+    } else {
+        ptr = ptr - 8; 
+        user_size = *(size_t*)ptr;
+        if(user_size > 4088){
+            bulk_free(ptr, user_size); 
+            return; 
+        } else {
+            index = block_index(user_size); 
+	    if(array_ptr[index] == NULL){
+	    	array_ptr[index] = (block*)ptr;
+		array_ptr[index] -> block_header = user_size; 
+		array_ptr[index] -> next = NULL;
 		return; 
-	} else {
-		//get the block with the metadata 
-		ptr = ptr - 8; 
-		//get size 
-		user_size = *(size_t*)ptr; 
-		if(user_size > 4088){
-			//ptr for bulk_free? 
-			bulk_free(ptr, user_size + 8); 
+	    }
+	    else { 
+	    	new_block = (block*)ptr; 
+		new_block -> next = NULL;
+		new_block -> block_header = user_size; 
+
+	    	if(array_ptr[index] -> next == NULL) { 
+			array_ptr[index] -> next = new_block; 
 			return; 
 		} else {
-			index = block_index(user_size); 
-			
-			//if free list is null: 
-			if(array_ptr[index] == NULL) {
-				array_ptr[index] = (block*)ptr; 
-				array_ptr[index] -> block_header = user_size; 
-				array_ptr[index] -> next = NULL; 
-			} 
-			//if free list is not null
-			else {
-				if(array_ptr[index] -> next == NULL) {
-					array_ptr[index] -> next = (block*)ptr; 
-					array_ptr[index] = array_ptr[index] -> next; 
-					array_ptr[index] -> block_header = user_size; 
-					array_ptr[index] -> next = NULL; 
-					return; 
-				} else { 
-					while(array_ptr[index] -> next != NULL) {
-						array_ptr[index] = array_ptr[index] -> next; 
-					} 
-					array_ptr[index] -> block_header = user_size; 
-					array_ptr[index] -> next = NULL; 
-					return;
-				}
+			while(array_ptr[index] -> next != NULL){ 
+				array_ptr[index] = array_ptr[index] -> next; 
+			}
+			//now array_ptr[index] -> next = NULL 
+			array_ptr[index] = new_block; 
+			return; 
 			}
 		}
 	}
+    }
 }
+
+      
+
 
