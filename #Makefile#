@@ -1,7 +1,7 @@
 CC := gcc
 
 # You may change this if you like.  However, the grader will use these
-# CFLAGS!  Note that _DEFAULT_SOURCE must be defined for your source to
+65;6003;1c# CFLAGS!  Note that _DEFAULT_SOURCE must be defined for your source to
 # find the functions brk() and sbrk(), and -fPIC is required for
 # building the shared library libcsemalloc.so.
 CFLAGS := -g -Wall -Werror -std=c99 -fPIC -D_DEFAULT_SOURCE
@@ -16,11 +16,12 @@ TESTS := test_bulk test_simple_malloc
 
 all: libcsemalloc.so
 
-# This rule generates an ELF shared object that can be used to test
-# your malloc against any UNIX application!  Applications that use
-# threading are likely to fail in unexpected ways, but single-threaded
-# applications will probably work fine!# You can use this library by
-# running the application as follows:
+# This rule generates an ELF shared object that can be used to test your
+# malloc against any UNIX application!  Applications that use threading
+# are likely to fail in unexpected ways, but single-threaded
+# applications will probably work fine.
+#
+# You can use this library by running the application as follows:
 #
 # LD_PRELOAD=./libcsemalloc.so command
 #
@@ -37,9 +38,9 @@ libcsemalloc.so: src/mm.o src/bulk.o
 
 test: $(TESTS) $(NEWTESTS)
 	@echo
-	@for test in $^; do                                   \
-	    printf "Running %-30s: " "$$test";                \
-	    (./$$test && echo "passed") || echo "failed";       \
+	@for test in $^; do                                   
+	    printf "Running %-30s: " "$$test";                
+	    (./$$test && echo "passed") || echo "failed";       
 	done
 	@echo
 

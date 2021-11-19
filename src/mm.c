@@ -88,9 +88,8 @@ static void *free_list(size_t size) {
     first_block -> block_header = size;
     sbrk_ptr += block_size; 
 
-    //question: should sbrk_ptr be casted to block for next? 
+    
     first_block -> next = (block*)sbrk_ptr; 
-
     array_ptr[index] = first_block; 
 
     //setting up the linked list after first block 
@@ -138,12 +137,9 @@ void *malloc(size_t size) {
 
     	} else {	
         	returned_ptr = (void*)array_ptr[index];
-        	returned_ptr += 8; 
-		if(array_ptr[index] -> next != NULL) {
-			array_ptr[index] = array_ptr[index] -> next; 
-		} else {
-			array_ptr[index] = NULL; 
-		}
+        	returned_ptr += 8;
+		//causing segmentation fault 
+		array_ptr[index] = array_ptr[index] -> next;
         	return returned_ptr; 
 	}
     }
