@@ -64,7 +64,7 @@ typedef struct block {
 } block; 
 
 /*array of *block pointers */ 
-struct block *array_ptr[13] = { NULL };  
+static struct block *array_ptr[13] ={ NULL }; 
 
 //creating a free list and return pointer to first block: 
 static void *free_list(size_t size) {
@@ -85,38 +85,34 @@ static void *free_list(size_t size) {
     //setting up first block  
     sbrk_ptr = sbrk(CHUNK_SIZE);
     first_block = (block*)sbrk_ptr;
-    first_block -> block_header = size;
-    sbrk_ptr += block_size; 
+    first_block -> block_header = size; 
 
-    
-    first_block -> next = (block*)sbrk_ptr; 
+    sbrk_ptr += block_size; 
+    first_block -> next = (block*)sbrk_ptr;
+
     array_ptr[index] = first_block; 
-
-    //setting up the linked list after first block 
     while(i <= number_of_blocks - 2){
-    other_block = (block*)sbrk_ptr; 
+    	other_block = (block*)sbrk_ptr; 
 
-    //last block 
+  	 //last block 
         if(i == number_of_blocks - 2) {
-        other_block -> block_header = size; 
-        other_block -> next = NULL;
-    }
+        	other_block -> block_header = size; 
+        	other_block -> next = NULL;
+	}
 
-    other_block -> block_header = size;
-    sbrk_ptr += block_size; 
-    other_block-> next = (block*)sbrk_ptr; 
-    i += 1;
-   }  
-   //returning the first block
-   return array_ptr[index]; 
-} 
+    	other_block -> block_header = size;
+    	sbrk_ptr += block_size; 
+    	other_block-> next = (block*)sbrk_ptr; 
+    	i += 1;  
+	} 
+   	return array_ptr[index]; 
+   }
 
 void *malloc(size_t size) {
 
     void *returned_ptr; 
     int index = 0; 
  
-
     if(size == 0 || size < 0) {
         return NULL; 
     }
@@ -138,8 +134,7 @@ void *malloc(size_t size) {
     	} else {	
         	returned_ptr = (void*)array_ptr[index];
         	returned_ptr += 8;
-		//causing segmentation fault 
-		array_ptr[index] = array_ptr[index] -> next;
+		array_ptr[index] = NULL;
         	return returned_ptr; 
 	}
     }
@@ -165,12 +160,12 @@ void *malloc(size_t size) {
  */
 void *calloc(size_t nmemb, size_t size) {
     if(nmemb == 0 || size == 0) {
-    return NULL; 
+    	return NULL; 
     } 
     if((nmemb * size) <= 4088) {
-    void *ptr = malloc(nmemb * size); 
-    memset(ptr,0, nmemb * size); 
-    return ptr; 
+  	void *ptr = malloc(nmemb * size); 
+    	memset(ptr,0, nmemb * size); 
+    	return ptr; 
     } 
     else { 
         void *ptr = bulk_alloc(nmemb * size);
@@ -211,15 +206,19 @@ void *realloc(void *ptr, size_t size) {
     ptr = ptr - 8; 
     user_size = *(size_t*)ptr; 
     block_size = 1 << block_index(user_size); 
+
+    if(size == user_size) {
+    	return ptr; 
+    } 
     //if there is still space
-    if(block_size - 8 >= size) {
+    if(block_size - 8 >=  size) {
         return ptr; 
 
     } else {
 
     	//question - should memcpy take in user_size or size requested ? 
         returned_ptr = malloc(size); 
-        returned_ptr = memcpy(returned_ptr,temp,user_size);
+        returned_ptr = memcpy(returned_ptr,temp,block_size - 8);
         free(ptr);  
         return returned_ptr; 
     }
