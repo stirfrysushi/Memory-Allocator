@@ -71,7 +71,7 @@ static void *free_list(size_t size) {
    
     //create free list table for specific index 
     int index = 0; 
-    int block_size = 0;
+    size_t block_size = 0;
     int number_of_blocks = 0;
     void *sbrk_ptr; 
     struct block *first_block; 
@@ -79,7 +79,7 @@ static void *free_list(size_t size) {
     int i = 0;
     
     index = block_index(size);
-    block_size = 1 << index;
+    block_size = 1 << block_index(size); 
     number_of_blocks = CHUNK_SIZE/block_size;
 
     //setting up first block  
@@ -105,7 +105,7 @@ static void *free_list(size_t size) {
 
     other_block -> block_header = size;
     sbrk_ptr += block_size; 
-    other_block-> next = sbrk_ptr; 
+    other_block-> next = (block*)sbrk_ptr; 
     i += 1;
    }  
    //returning the first block
@@ -139,7 +139,11 @@ void *malloc(size_t size) {
     	} else {	
         	returned_ptr = (void*)array_ptr[index];
         	returned_ptr += 8; 
-		array_ptr[index] = array_ptr[index] -> next; 
+		if(array_ptr[index] -> next != NULL) {
+			array_ptr[index] = array_ptr[index] -> next; 
+		} else {
+			array_ptr[index] = NULL; 
+		}
         	return returned_ptr; 
 	}
     }
@@ -193,9 +197,8 @@ void *calloc(size_t nmemb, size_t size) {
  */
 void *realloc(void *ptr, size_t size) {
 
-    size_t user_size; 
-    int index = 0; 
-    int block_size = 0;
+    size_t user_size;  
+    size_t block_size = 0;
     void *returned_ptr;
     void *temp; 
 
@@ -211,8 +214,7 @@ void *realloc(void *ptr, size_t size) {
     //get block current size: 
     ptr = ptr - 8; 
     user_size = *(size_t*)ptr; 
-    index = block_index(user_size); 
-    block_size = 1 << index; 
+    block_size = 1 << block_index(user_size); 
     //if there is still space
     if(block_size - 8 >= size) {
         return ptr; 
@@ -241,6 +243,7 @@ void free(void *ptr) {
     size_t user_size = 0;
     int index = 0;
     struct block *new_block; 
+    struct block *temp; 
 
     if(ptr == NULL) {
         return; 
@@ -260,19 +263,19 @@ void free(void *ptr) {
 	    }
 	    else { 
 	    	new_block = (block*)ptr; 
-		new_block -> next = NULL;
-		new_block -> block_header = user_size; 
 
 	    	if(array_ptr[index] -> next == NULL) { 
+			new_block -> next = NULL; 
+			new_block -> block_header = user_size; 
 			array_ptr[index] -> next = new_block; 
 			return; 
 		} else {
-			while(array_ptr[index] -> next != NULL){ 
-				array_ptr[index] = array_ptr[index] -> next; 
-			}
-			//now array_ptr[index] -> next = NULL 
+			temp = array_ptr[index]; 
+
 			array_ptr[index] = new_block; 
-			return; 
+			array_ptr[index] -> block_header = user_size; 
+			array_ptr[index] -> next = temp; 
+			return;
 			}
 		}
 	}
